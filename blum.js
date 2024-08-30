@@ -223,7 +223,7 @@ class GameBot {
       const response = await axios.post(`https://game-domain.blum.codes/api/v1/tasks/${taskId}/start`, {}, { headers: await this.headers(this.token) });
       return response.data;
     } catch (error) {
-      this.log(`Không thể bắt đầu nhiệm vụ ${taskId}: ${error.message}`, 'error');
+//      this.log(`Không thể bắt đầu nhiệm vụ ${taskId}: ${error.message}`, 'error');
       return null;
     }
   }
@@ -246,6 +246,24 @@ class GameBot {
         rl.close();
         resolve(ans);
     }))
+  }
+
+  async joinTribe(tribeId) {
+    const url = `https://game-domain.blum.codes/api/v1/tribe/${tribeId}/join`;
+    try {
+      const response = await axios.post(url, {}, { headers: await this.headers(this.token) });
+      if (response.status === 200) {
+        this.log('Bạn đã gia nhập tribe thành công', 'success');
+        return true;
+      }
+    } catch (error) {
+      if (error.response && error.response.data && error.response.data.message === 'USER_ALREADY_IN_TRIBE') {
+        this.log('Bạn đã gia nhập tribe rồi', 'warning');
+      } else {
+        this.log(`Không thể gia nhập tribe: ${error.message}`, 'error');
+      }
+      return false;
+    }
   }
 
   async main() {
@@ -282,6 +300,9 @@ class GameBot {
             this.log(`Số dư: ${balanceInfo.availableBalance}`, 'success');
             this.log(`Vé chơi game: ${balanceInfo.playPasses}`, 'success');
 
+            const tribeId = 'b372af40-6e97-4782-b70d-4fc7ea435022';
+            await this.joinTribe(tribeId);
+            
             if (!balanceInfo.farming) {
                 const farmingResult = await this.startFarming();
                 if (farmingResult) {
@@ -334,7 +355,7 @@ class GameBot {
               if (startResult) {
                 this.log(`Đã bắt đầu nhiệm vụ: ${task.title}`, 'success');
               } else {
-                this.log(`Không thể bắt đầu nhiệm vụ: ${task.title}`, 'error');
+//                this.log(`Không thể bắt đầu nhiệm vụ: ${task.title}`, 'error');
                 continue;
               }
 
@@ -374,17 +395,31 @@ class GameBot {
         
         if (balanceInfo && balanceInfo.playPasses > 0) {
           for (let j = 0; j < balanceInfo.playPasses; j++) {
-            const playResult = await this.playGame();
-            if (playResult) {
-              this.log(`Bắt đầu chơi game lần thứ ${j + 1}...`, 'success');
-              await this.Countdown(30);
-              const claimGameResult = await this.claimGame(2000);
-              if (claimGameResult) {
-                this.log(`Đã nhận phần thưởng game lần thứ ${j + 1} thành công!`, 'success');
+            let playAttempts = 0;
+            const maxAttempts = 10;
+        
+            while (playAttempts < maxAttempts) {
+              try {
+                const playResult = await this.playGame();
+                if (playResult) {
+                  this.log(`Bắt đầu chơi game lần thứ ${j + 1}...`, 'success');
+                  await this.Countdown(30);
+                  const claimGameResult = await this.claimGame(2000);
+                  if (claimGameResult) {
+                    this.log(`Đã nhận phần thưởng game lần thứ ${j + 1} thành công!`, 'success');
+                  }
+                  break;
+                }
+              } catch (error) {
+                playAttempts++;
+                this.log(`Không thể chơi game lần thứ ${j + 1}, lần thử ${playAttempts}: ${error.message}`, 'warning');
+                if (playAttempts < maxAttempts) {
+                  this.log(`Đang thử lại...`, 'info');
+                  await this.Countdown(5);
+                } else {
+                  this.log(`Đã thử ${maxAttempts} lần không thành công, bỏ qua lượt chơi này`, 'error');
+                }
               }
-            } else {
-              this.log(`Không thể chơi game lần thứ ${j + 1}`, 'error');
-              break;
             }
           }
         } else {
