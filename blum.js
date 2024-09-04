@@ -404,9 +404,10 @@ class GameBot {
                 if (playResult) {
                   this.log(`Bắt đầu chơi game lần thứ ${j + 1}...`, 'success');
                   await this.Countdown(30);
-                  const claimGameResult = await this.claimGame(2000);
+                  const randomNumber = Math.floor(Math.random() * (200 - 150 + 1)) + 150;
+                  const claimGameResult = await this.claimGame(randomNumber);
                   if (claimGameResult) {
-                    this.log(`Đã nhận phần thưởng game lần thứ ${j + 1} thành công!`, 'success');
+                    this.log(`Đã nhận phần thưởng game lần thứ ${j + 1} thành công với ${randomNumber} điểm!`, 'success');
                   }
                   break;
                 }
