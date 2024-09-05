@@ -1,7 +1,6 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const colors = require('colors');
 const readline = require('readline');
 const { DateTime } = require('luxon');
 const { HttpsProxyAgent } = require('https-proxy-agent');
@@ -458,10 +457,9 @@ class GameBot {
                 if (playResult) {
                   this.log(`Bắt đầu chơi game lần thứ ${j + 1}...`, 'success');
                   await this.Countdown(30);
-                  const randomNumber = Math.floor(Math.random() * (200 - 150 + 1)) + 150;
-                  const claimGameResult = await this.claimGame(randomNumber);
+                  const claimGameResult = await this.claimGame(2000);
                   if (claimGameResult) {
-                    this.log(`Đã nhận phần thưởng game lần thứ ${j + 1} thành công với ${randomNumber} điểm!`, 'success');
+                    this.log(`Đã nhận phần thưởng game lần thứ ${j + 1} thành công!`, 'success');
                   }
                   break; 
                 } else {
