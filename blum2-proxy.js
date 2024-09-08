@@ -348,11 +348,25 @@ class GameBot {
       } else {
         await this.log('Không thể lấy thông tin số dư', 'error');
       }
-      const taskListResponse = await this.getTasks();
-      if (taskListResponse && Array.isArray(taskListResponse) && taskListResponse.length > 0) {
-        let allTasks = taskListResponse.flatMap(section => section.tasks || []);
+      const dataTasks = await this.getTasks();
+      if (Array.isArray(dataTasks) && dataTasks.length > 0) {
+        await this.log('Đã lấy danh sách nhiệm vụ', 'info');
         
-        const excludedTaskIds = [
+        let allTasks = [];
+        for (const section of dataTasks) {
+          if (section.tasks && Array.isArray(section.tasks)) {
+            allTasks = allTasks.concat(section.tasks);
+          }
+          if (section.subSections && Array.isArray(section.subSections)) {
+            for (const subSection of section.subSections) {
+              if (subSection.tasks && Array.isArray(subSection.tasks)) {
+                allTasks = allTasks.concat(subSection.tasks);
+              }
+            }
+          }
+        }
+
+        const skipTasks = [
           "5daf7250-76cc-4851-ac44-4c7fdcfe5994",
           "3b0ae076-9a85-4090-af55-d9f6c9463b2b",
           "89710917-9352-450d-b96e-356403fc16e0",
@@ -362,25 +376,34 @@ class GameBot {
           "d3716390-ce5b-4c26-b82e-e45ea7eba258",
           "5ecf9c15-d477-420b-badf-058537489524",
           "d057e7b7-69d3-4c15-bef3-b300f9fb7e31",
-          "a4ba4078-e9e2-4d16-a834-02efe22992e2"
+          "a4ba4078-e9e2-4d16-a834-02efe22992e2",
+          "39391eb2-f031-4954-bd8a-e7aecbb1f192"
         ];
-        
-        allTasks = allTasks.filter(task => !excludedTaskIds.includes(task.id));
-        
-        const notStartedTasks = allTasks.filter(task => task.status === "NOT_STARTED");
-        for (const task of notStartedTasks) {
+
+        const taskFilter = allTasks.filter(
+          (task) =>
+            !skipTasks.includes(task.id) &&
+            task.status !== "FINISHED" &&
+            !task.isHidden
+        );
+
+        for (const task of taskFilter) {
+          await this.log(`Bắt đầu nhiệm vụ: ${task.title} | ${task.id}`, 'info');
+          
           const startResult = await this.startTask(task.id);
           if (startResult) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            const claimResult = await this.claimTask(task.id);
-            if (claimResult && claimResult.status === "FINISHED") {
-              await this.log(`Làm nhiệm vụ ${task.title}... trạng thái: thành công!`, 'success');
-            } else {
-              await this.log(`Không thể nhận phần thưởng cho nhiệm vụ: ${task.title}`, 'error');
-            }
+            await this.log(`Đã bắt đầu nhiệm vụ: ${task.title}`, 'success');
           } else {
-            await this.log(`Không thể bắt đầu nhiệm vụ: ${task.title}`, 'error');
+            continue;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          const claimResult = await this.claimTask(task.id);
+          if (claimResult && claimResult.status === "FINISHED") {
+            await this.log(`Làm nhiệm vụ ${task.title.yellow}${`... trạng thái: thành công!`.green}`, 'success');
+          } else {
+            await this.log(`Không thể nhận phần thưởng cho nhiệm vụ: ${task.title.yellow}`, 'error');
           }
         }
       } else {

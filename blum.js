@@ -133,7 +133,7 @@ class GameBot {
     const data = JSON.stringify({ game: 'example_game' });
     try {
       await this.randomDelay();
-      const response = await axios.post('https://game-domainn.blum.codes/api/v1/game/play', data, { headers: await this.headers(this.token) });
+      const response = await axios.post('https://game-domain.blum.codes/api/v1/game/play', data, { headers: await this.headers(this.token) });
       if (response.status === 200) {
         this.currentGameId = response.data.gameId;
         return response.data;
@@ -367,13 +367,25 @@ class GameBot {
         }
 
         if (hoinhiemvu) {
-          const taskListResponse = await this.getTasks();
-          if (taskListResponse && Array.isArray(taskListResponse) && taskListResponse.length > 0) {
-            let allTasks = taskListResponse.flatMap(section => section.tasks || []);
-            
+          const dataTasks = await this.getTasks();
+          if (Array.isArray(dataTasks) && dataTasks.length > 0) {
             await this.log('Đã lấy danh sách nhiệm vụ', 'info');
             
-            const excludedTaskIds = [
+            let allTasks = [];
+            for (const section of dataTasks) {
+              if (section.tasks && Array.isArray(section.tasks)) {
+                allTasks = allTasks.concat(section.tasks);
+              }
+              if (section.subSections && Array.isArray(section.subSections)) {
+                for (const subSection of section.subSections) {
+                  if (subSection.tasks && Array.isArray(subSection.tasks)) {
+                    allTasks = allTasks.concat(subSection.tasks);
+                  }
+                }
+              }
+            }
+    
+            const skipTasks = [
               "5daf7250-76cc-4851-ac44-4c7fdcfe5994",
               "3b0ae076-9a85-4090-af55-d9f6c9463b2b",
               "89710917-9352-450d-b96e-356403fc16e0",
@@ -385,14 +397,17 @@ class GameBot {
               "d057e7b7-69d3-4c15-bef3-b300f9fb7e31",
               "a4ba4078-e9e2-4d16-a834-02efe22992e2"
             ];
-            
-            allTasks = allTasks.filter(task => !excludedTaskIds.includes(task.id));
-            console.log('[*] Tổng số nhiệm vụ:', allTasks.length);
-            
-            const notStartedTasks = allTasks.filter(task => task.status === "NOT_STARTED");
-            await this.log(`Số lượng nhiệm vụ chưa bắt đầu: ${notStartedTasks.length}`, 'info');
-            
-            for (const task of notStartedTasks) {
+    
+            const taskFilter = allTasks.filter(
+              (task) =>
+                !skipTasks.includes(task.id) &&
+                task.status !== "FINISHED" &&
+                !task.isHidden
+            );
+    
+            console.log('[*] Tổng số nhiệm vụ:', taskFilter.length);
+    
+            for (const task of taskFilter) {
               await this.log(`Bắt đầu nhiệm vụ: ${task.title} | ${task.id}`, 'info');
               
               const startResult = await this.startTask(task.id);
